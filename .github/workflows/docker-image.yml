@@ -51,7 +51,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64
+          platforms: linux/${{ matrix.architecture }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
