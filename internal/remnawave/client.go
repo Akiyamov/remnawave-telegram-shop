@@ -1,12 +1,9 @@
 package remnawave
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
@@ -41,61 +38,7 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		r.Header.Set(key, value)
 	}
 
-	resp, err := t.base.RoundTrip(r)
-	if err != nil {
-		return resp, err
-	}
-
-	ct := resp.Header.Get("Content-Type")
-	if strings.Contains(ct, "application/json") {
-		body, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if readErr == nil {
-			body = injectMissingUserFields(body)
-		}
-		resp.Body = io.NopCloser(bytes.NewReader(body))
-		resp.ContentLength = int64(len(body))
-	}
-
-	return resp, nil
-}
-
-// injectMissingUserFields walks the JSON and injects subLastUserAgent/subLastOpenedAt
-// as null into any object that contains subscriptionUrl (i.e. UserItemInfo).
-// This is needed because the panel removed these fields but the library still
-// requires them in its decoder.
-func injectMissingUserFields(data []byte) []byte {
-	var v interface{}
-	if err := json.Unmarshal(data, &v); err != nil {
-		return data
-	}
-	injectIntoValue(v)
-	result, err := json.Marshal(v)
-	if err != nil {
-		return data
-	}
-	return result
-}
-
-func injectIntoValue(v interface{}) {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		if _, hasSubUrl := val["subscriptionUrl"]; hasSubUrl {
-			if _, ok := val["subLastUserAgent"]; !ok {
-				val["subLastUserAgent"] = nil
-			}
-			if _, ok := val["subLastOpenedAt"]; !ok {
-				val["subLastOpenedAt"] = nil
-			}
-		}
-		for _, child := range val {
-			injectIntoValue(child)
-		}
-	case []interface{}:
-		for _, item := range val {
-			injectIntoValue(item)
-		}
-	}
+	return t.base.RoundTrip(r)
 }
 
 func NewClient(baseURL, token, mode string) *Client {
